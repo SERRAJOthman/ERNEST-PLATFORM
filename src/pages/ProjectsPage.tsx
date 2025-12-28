@@ -1,8 +1,10 @@
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, MoreHorizontal, MapPin, Clock } from 'lucide-react';
+import { Plus, MoreHorizontal, MapPin, Clock, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Types ---
 type ProjectStatus = 'draft' | 'active' | 'completed' | 'archived';
@@ -13,8 +15,8 @@ interface Project {
     description: string;
     status: ProjectStatus;
     updated_at: string;
-    assignee?: string; // Mock for now
-    priority?: 'High' | 'Normal' | 'Low'; // Mock for now
+    assignee?: string;
+    priority?: 'High' | 'Normal' | 'Low';
 }
 
 const COLUMNS: { id: ProjectStatus; title: string; color: string }[] = [
@@ -25,6 +27,9 @@ const COLUMNS: { id: ProjectStatus; title: string; color: string }[] = [
 
 export const ProjectsPage = () => {
     const queryClient = useQueryClient();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [newDesc, setNewDesc] = useState('');
 
     // 1. Fetch Projects
     const { data: projects = [] } = useQuery({
@@ -44,42 +49,48 @@ export const ProjectsPage = () => {
         mutationFn: async ({ id, status }: { id: string; status: ProjectStatus }) => {
             const { error } = await (supabase as any)
                 .from('projects')
-                .update({ status })
+                .update({ status, updated_at: new Date().toISOString() })
                 .eq('id', id);
             if (error) throw error;
         },
         onMutate: async ({ id, status }) => {
-            // Optimistic Update
             await queryClient.cancelQueries({ queryKey: ['all-projects'] });
             const previousProjects = queryClient.getQueryData(['all-projects']);
             queryClient.setQueryData(['all-projects'], (old: Project[]) =>
-                old.map(p => p.id === id ? { ...p, status } : p)
+                old.map(p => p.id === id ? { ...p, status, updated_at: new Date().toISOString() } : p)
             );
             return { previousProjects };
-        },
-        onError: (_err, _newTodo, context: any) => {
-            queryClient.setQueryData(['all-projects'], context.previousProjects);
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['all-projects'] });
         }
     });
 
-    // 3. Drag Handler
+    // 3. Mutation for New Project
+    const createProjectMutation = useMutation({
+        mutationFn: async ({ name, description }: { name: string; description: string }) => {
+            const { error } = await (supabase as any)
+                .from('projects')
+                .insert([{ name, description, status: 'draft' }]);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['all-projects'] });
+            setIsModalOpen(false);
+            setNewName('');
+            setNewDesc('');
+        }
+    });
+
+    // 4. Handlers
     const onDragEnd = (result: any) => {
         const { destination, source, draggableId } = result;
-
         if (!destination) return;
-        if (
-            destination.droppableId === source.droppableId &&
-            destination.index === source.index
-        ) return;
-
+        if (destination.droppableId === source.droppableId && destination.index === source.index) return;
         const newStatus = destination.droppableId as ProjectStatus;
         updateStatusMutation.mutate({ id: draggableId, status: newStatus });
     };
 
-    // 4. Group Projects by Column
     const getProjectsByStatus = (status: ProjectStatus) => {
         return projects.filter(p => (p.status || 'draft') === status);
     };
@@ -95,7 +106,7 @@ export const ProjectsPage = () => {
                     <p className="text-white/50 text-sm mt-1">Manage active sites and work orders</p>
                 </div>
                 <button
-                    onClick={() => alert("Create Modal Placeholder")}
+                    onClick={() => setIsModalOpen(true)}
                     className="bg-primary hover:bg-primary/80 text-black px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-[0_0_20px_rgba(0,217,255,0.3)]"
                 >
                     <Plus className="w-5 h-5" /> New Project
@@ -108,7 +119,6 @@ export const ProjectsPage = () => {
                     <div className="flex h-full gap-6 min-w-max">
                         {COLUMNS.map(col => (
                             <div key={col.id} className="w-80 flex flex-col h-full bg-[#0f172a]/50 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden">
-                                {/* Column Header */}
                                 <div className={`p-4 border-b border-white/5 flex justify-between items-center ${col.color}`}>
                                     <div className="flex items-center gap-2">
                                         <div className={`w-3 h-3 rounded-full ${col.id === 'active' ? 'bg-primary animate-pulse' : 'bg-white/20'}`}></div>
@@ -119,7 +129,6 @@ export const ProjectsPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Droppable Area */}
                                 <Droppable droppableId={col.id}>
                                     {(provided) => (
                                         <div
@@ -159,7 +168,6 @@ export const ProjectsPage = () => {
                                                                     <Clock className="w-3 h-3" />
                                                                     {project.updated_at ? formatDistanceToNow(new Date(project.updated_at), { addSuffix: true }) : 'N/A'}
                                                                 </div>
-                                                                {/* Mock Avatar */}
                                                                 <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-[10px] font-bold text-white">
                                                                     OS
                                                                 </div>
@@ -177,6 +185,65 @@ export const ProjectsPage = () => {
                     </div>
                 </div>
             </DragDropContext>
+
+            {/* New Project Modal */}
+            <AnimatePresence>
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsModalOpen(false)}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        ></motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-lg bg-[#0f172a] border border-white/10 rounded-3xl shadow-2xl p-8 overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 p-6">
+                                <button onClick={() => setIsModalOpen(false)} className="text-white/20 hover:text-white">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <h2 className="text-2xl font-bold text-white mb-6">Initialize New Project</h2>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Project Name</label>
+                                    <input
+                                        type="text"
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 transition-colors"
+                                        placeholder="e.g. Skyline Apartments Phase 1"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Site Description / Location</label>
+                                    <textarea
+                                        value={newDesc}
+                                        onChange={(e) => setNewDesc(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 transition-colors h-32 resize-none"
+                                        placeholder="Enter site details or address..."
+                                    />
+                                </div>
+
+                                <button
+                                    onClick={() => createProjectMutation.mutate({ name: newName, description: newDesc })}
+                                    disabled={!newName || createProjectMutation.isPending}
+                                    className="w-full bg-primary hover:bg-primary/80 text-black font-bold py-4 rounded-xl transition-all shadow-[0_0_30px_rgba(0,217,255,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {createProjectMutation.isPending ? 'Deploying...' : 'Deploy Project Thread'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

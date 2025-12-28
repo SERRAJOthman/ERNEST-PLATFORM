@@ -49,6 +49,36 @@ alter table public.projects enable row level security;
 alter table public.chrono_threads enable row level security;
 alter table public.chrono_events enable row level security;
 
--- Allow read access to authenticated users for now (refine later)
-create policy "Public profiles are viewable by everyone" on public.profiles for select using (true);
-create policy "Projects viewable by team" on public.projects for select using (true); 
+-- 5. Sites (Geographical Locations)
+create table public.sites (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  address text,
+  city text,
+  latitude double precision,
+  longitude double precision,
+  status text check (status in ('active', 'on_hold', 'completed')) default 'active',
+  manager_id uuid references public.profiles(id),
+  created_at timestamptz default now()
+);
+
+-- 6. Financials (Budget & Spending)
+create table public.financials (
+  id uuid default uuid_generate_v4() primary key,
+  project_id uuid references public.projects(id) not null,
+  total_budget numeric(15, 2) default 0,
+  spent_ytd numeric(15, 2) default 0,
+  variance numeric(15, 2) default 0,
+  status text check (status in ('on_track', 'over_budget', 'under_budget')) default 'on_track',
+  last_updated timestamptz default now()
+);
+
+-- Link Projects to Sites
+alter table public.projects add column site_id uuid references public.sites(id);
+
+-- Updated RLS Policies
+alter table public.sites enable row level security;
+alter table public.financials enable row level security;
+
+create policy "Sites are viewable by everyone" on public.sites for select using (true);
+create policy "Financials viewable by managers" on public.financials for select using (true);

@@ -13,16 +13,25 @@ export class BackgroundSyncService {
     private retryCount: number = 0;
 
     async initialize(): Promise<void> {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BackgroundSyncService.ts:15',message:'BackgroundSyncService.initialize called',data:{isInitialized:this.isInitialized},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         if (this.isInitialized) return;
 
         try {
             // Define the background task
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BackgroundSyncService.ts:20',message:'Before TaskManager.defineTask',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
                 await this.performSync();
                 return BackgroundFetch.BackgroundFetchResult.NewData;
             });
 
             // Register the task
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BackgroundSyncService.ts:27',message:'Before BackgroundFetch.registerTaskAsync',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             const status = await BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
                 minimumInterval: SYNC_INTERVAL / 1000, // Convert to seconds
                 stopOnTerminate: false,
@@ -31,18 +40,33 @@ export class BackgroundSyncService {
 
             console.log('Background sync registered:', status);
             this.isInitialized = true;
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BackgroundSyncService.ts:35',message:'BackgroundSyncService initialized successfully',data:{status:JSON.stringify(status)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
 
         } catch (error) {
             console.error('Background sync initialization failed:', error);
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BackgroundSyncService.ts:38',message:'BackgroundSyncService initialization failed',data:{error:error instanceof Error ? error.message : String(error),errorType:error instanceof Error ? error.constructor.name : typeof error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
         }
     }
 
     async performSync(): Promise<boolean> {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BackgroundSyncService.ts:40',message:'performSync started',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         try {
             console.log('Starting background sync...');
 
             // Check network connectivity
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BackgroundSyncService.ts:45',message:'Before NetInfo.fetch',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             const netState = await NetInfo.fetch();
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BackgroundSyncService.ts:47',message:'After NetInfo.fetch',data:{isConnected:netState.isConnected},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             if (!netState.isConnected) {
                 console.log('No network connection, skipping sync');
                 return false;

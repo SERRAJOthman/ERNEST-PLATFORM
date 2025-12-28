@@ -63,14 +63,18 @@ export const useMetrics = () => {
                 .select('*', { count: 'exact', head: true })
                 .eq('status', 'active');
 
-            // 2. Mock aggregate for Health/Compliance (since complex JSONB aggregation is better done via RPC or Edge Function)
-            // In a real app, you'd call a Postgres function here.
-            // For now, we simulate calculation from recent events.
+            // 2. Financial Pulse
+            const { data: financials } = await (supabase as any)
+                .from('financials')
+                .select('status');
+
+            const onTrackCount = financials?.filter((f: any) => f.status === 'on_track').length || 0;
+            const healthPercent = financials?.length ? (onTrackCount / financials.length) * 100 : 100;
 
             return {
                 activeProjects: projectCount || 0,
-                financialHealth: 96, // Placeholder aggregation
-                complianceRisk: 'Low' // Placeholder aggregation
+                financialHealth: Math.round(healthPercent),
+                complianceRisk: 'Low'
             };
         }
     });

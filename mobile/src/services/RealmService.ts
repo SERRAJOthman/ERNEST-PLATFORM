@@ -119,6 +119,8 @@ export const getRealm = async (): Promise<Realm> => {
     });
 };
 
+import { supabase } from '../lib/supabase';
+
 // Sync Service for Background Operations
 export class SyncService {
     private realm: Realm;
@@ -131,55 +133,76 @@ export class SyncService {
     async syncPendingChanges(): Promise<void> {
         if (this.isSyncing) return;
 
+        // Check if user is authenticated before syncing
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            console.log('Sync skipped: No active session');
+            return;
+        }
+
         this.isSyncing = true;
+        console.log('Syncing starting...');
 
         try {
             const pendingThreads = this.realm.objects<ChronoThread>('ChronoThread')
                 .filtered('sync_status == "pending"')
-                .slice(0, 50); // Batch size
+                .slice(0, 50);
 
             const pendingEvents = this.realm.objects<Event>('Event')
                 .filtered('sync_priority == "critical"')
                 .slice(0, 100);
 
-            // Sync critical events first
-            for (const event of pendingEvents) {
-                await this.syncEvent(event);
-            }
-
-            // Then sync threads
+            // 1. Sync Threads
             for (const thread of pendingThreads) {
-                await this.syncThread(thread);
-            }
+                const { error } = await supabase
+                    .from('chrono_threads')
+                    .upsert({
+                        id: thread.id,
+                        project_id: thread.project_id,
+                        entity_type: thread.entity_type,
+                        entity_id: thread.entity_id,
+                        title: thread.metadata['title'] || 'Mobile Sync',
+                        current_state: thread.metadata
+                    });
 
-            // Update sync status
-            this.realm.write(() => {
-                pendingEvents.forEach(event => {
-                    event.sync_priority = 'normal'; // Downgrade after sync
-                });
+                if (error) {
+                    console.error('Thread sync error:', error);
+                    continue;
+                }
 
-                pendingThreads.forEach(thread => {
+                this.realm.write(() => {
                     thread.sync_status = 'synced';
                     thread.last_sync_at = new Date();
                 });
-            });
+            }
+
+            // 2. Sync Events
+            for (const event of pendingEvents) {
+                const { error } = await supabase
+                    .from('chrono_events')
+                    .insert({
+                        thread_id: event.thread_id,
+                        event_type: event.event_type,
+                        payload: event.data_payload,
+                        actor_id: session.user.id
+                    });
+
+                if (error) {
+                    console.error('Event sync error:', error);
+                    continue;
+                }
+
+                this.realm.write(() => {
+                    this.realm.delete(event); // Delete synced transient events
+                });
+            }
+
+            console.log('Sync cycle complete');
 
         } catch (error) {
-            console.error('Sync failed:', error);
-            // Implement retry logic with exponential backoff
+            console.error('Sync process failed:', error);
         } finally {
             this.isSyncing = false;
         }
-    }
-
-    private async syncEvent(event: Event): Promise<void> {
-        // Implement actual sync logic to backend
-        // For now, simulate network request
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    private async syncThread(thread: ChronoThread): Promise<void> {
-        // Implement actual sync logic to backend
-        await new Promise(resolve => setTimeout(resolve, 150));
     }
 }

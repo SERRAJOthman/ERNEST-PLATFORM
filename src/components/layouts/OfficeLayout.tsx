@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutGrid, Briefcase, ChartLine, ShieldCheck, Hexagon, Bell, Search, Menu, Map } from 'lucide-react';
+import { LayoutGrid, Briefcase, ChartLine, ShieldCheck, Hexagon, Bell, Search, Menu, Map, LogOut } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const OfficeLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const location = useLocation();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const { user, signOut } = useAuth();
 
     return (
         <div className="flex h-screen overflow-hidden bg-[#0a1628] text-white selection:bg-primary/30">
@@ -32,15 +34,24 @@ export const OfficeLayout: React.FC<{ children: React.ReactNode }> = ({ children
                     <NavItem to="/sites" icon={Map} label="View All Sites" active={location.pathname === '/sites'} />
                 </nav>
 
-                <div className="p-6 border-t border-white/5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center font-bold text-sm">
-                            OS
+                <div className="p-6 border-t border-white/5 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center font-bold text-sm">
+                                {user?.email?.slice(0, 2).toUpperCase() || 'OS'}
+                            </div>
+                            <div>
+                                <div className="text-sm font-medium truncate w-32">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Othman Serraj'}</div>
+                                <div className="text-xs text-white/50">Superintendent</div>
+                            </div>
                         </div>
-                        <div>
-                            <div className="text-sm font-medium">Othman Serraj</div>
-                            <div className="text-xs text-white/50">Superintendent</div>
-                        </div>
+                        <button
+                            onClick={() => signOut()}
+                            className="p-2 rounded-lg bg-white/5 text-white/40 hover:text-danger hover:bg-danger/10 transition-colors"
+                            title="Sign Out"
+                        >
+                            <LogOut className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
             </motion.aside>
@@ -54,6 +65,13 @@ export const OfficeLayout: React.FC<{ children: React.ReactNode }> = ({ children
                         <NavItem to="/financials" icon={ChartLine} label="Financials" active={location.pathname === '/financials'} />
                         <NavItem to="/compliance" icon={ShieldCheck} label="Compliance" active={location.pathname === '/compliance'} />
                         <NavItem to="/sites" icon={Map} label="View All Sites" active={location.pathname === '/sites'} />
+                        <button
+                            onClick={() => signOut()}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-danger hover:bg-danger/10 transition-all group"
+                        >
+                            <LogOut className="w-5 h-5 group-hover:drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                            <span className="font-medium text-sm">Sign Out</span>
+                        </button>
                     </nav>
                 </div>
             </div>

@@ -2,7 +2,6 @@ import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import * as Location from 'expo-location';
 // import * as Beacon from 'expo-beacon';
 import { Platform } from 'react-native';
-import { Buffer } from 'buffer';
 
 // Activity Recognition using TensorFlow.js Lite (simplified)
 export class ContextDetectionService {
@@ -31,17 +30,32 @@ export class ContextDetectionService {
     }
 
     async initialize(): Promise<void> {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ContextDetectionService.ts:33',message:'ContextDetectionService.initialize started',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         try {
             // Request permissions
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ContextDetectionService.ts:36',message:'Before Location.requestForegroundPermissionsAsync',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
             const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ContextDetectionService.ts:39',message:'After Location.requestForegroundPermissionsAsync',data:{locationStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
             // const { status: beaconStatus } = await Beacon.requestPermissionsAsync();
 
             if (locationStatus !== 'granted') { // || beaconStatus !== 'granted'
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ContextDetectionService.ts:42',message:'Location permission not granted',data:{locationStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                // #endregion
                 throw new Error('Required permissions not granted');
             }
 
             // Start sensors
             this.startSensors();
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ContextDetectionService.ts:48',message:'Sensors started',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
 
             // Start beacon monitoring if on iOS
             if (Platform.OS === 'ios') {
@@ -49,9 +63,15 @@ export class ContextDetectionService {
             }
 
             this.isMonitoring = true;
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ContextDetectionService.ts:55',message:'ContextDetectionService initialized successfully',data:{isMonitoring:this.isMonitoring},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
 
         } catch (error) {
             console.error('Context detection initialization failed:', error);
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/376cf253-9ee7-4985-8009-63bb4501810c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ContextDetectionService.ts:59',message:'ContextDetectionService initialization failed',data:{error:error instanceof Error ? error.message : String(error),errorType:error instanceof Error ? error.constructor.name : typeof error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
             throw error;
         }
     }
